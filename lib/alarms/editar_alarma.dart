@@ -1,6 +1,6 @@
 import 'dart:ui';
 import 'package:flutter/material.dart';
-import 'database_helper.dart';
+import 'alarm_model.dart';
 import 'repetir.dart';
 
 class EditarAlarma extends StatefulWidget {
@@ -23,7 +23,7 @@ class _EditarAlarmaState extends State<EditarAlarma> {
   late TimeOfDay _hora;
   late List<String> _dias;
   late bool _activa;
-  late int? _id;
+  late String? _id;
 
   @override
   void initState() {

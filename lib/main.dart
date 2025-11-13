@@ -1,3 +1,6 @@
+
+import 'package:firebase_core/firebase_core.dart';
+
 // lib/main.dart
 import 'package:flutter/material.dart';
 import 'package:shamadi_app/menu.dart';
@@ -17,6 +20,8 @@ import 'package:shamadi_app/home_screen/timer_model.dart';
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
+  await Firebase.initializeApp();
+  
   // Inicializa la base de datos IANA de zonas horarias
   tz.initializeTimeZones();
 
@@ -70,3 +75,4 @@ class MyApp extends StatelessWidget {
     );
   }
 }
+
