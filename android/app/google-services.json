@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "179424810259",
+    "project_id": "shamadiapp",
+    "storage_bucket": "shamadiapp.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:179424810259:android:53b520391bd8dccc5eb6e6",
+        "android_client_info": {
+          "package_name": "com.example.shamadi_app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAkMjv3zNEtW8dKX5kBmOL1rsw0u2ccSw8"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
