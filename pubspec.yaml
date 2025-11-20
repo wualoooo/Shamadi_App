@@ -31,27 +31,24 @@ dependencies:
   flutter:
     sdk: flutter
 
-  # Base
-  path: ^1.8.3
+  # Firebase
+  firebase_core: ^4.2.1
+  cloud_firestore: ^6.1.0
+
+  # Estado y almacenamiento
+  provider: ^6.1.1
   shared_preferences: ^2.5.3
 
-  # Notificaciones y zona horaria
+  # Notificaciones
   flutter_local_notifications: ^19.5.0
 
-  # Información del dispositivo y sensores
-  device_info_plus: ^10.1.0
-  sensors_plus: ^7.0.0
+  # Sensores y hardware
   wakelock_plus: ^1.4.0
   proximity_sensor: ^1.3.8
   do_not_disturb: ^1.0.3
-  provider: ^6.1.1  
 
   # UI
   cupertino_icons: ^1.0.8
-
-  #Firebase
-  firebase_core: ^4.2.1
-  cloud_firestore: ^6.1.0
 
 
   # The following adds the Cupertino Icons font to your application.
