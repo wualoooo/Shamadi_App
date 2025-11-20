@@ -17,10 +17,10 @@ class ButtonNavigatorWidget extends StatefulWidget {
 }
 
 class _ButtonNavigatorWidgetState extends State<ButtonNavigatorWidget> {
-  int _selectIndex = 0;
+  int _selectIndex = 0;// HomeScreen.dart de manera predeterminada
 
   static const List<Widget> _sections = [
-    HomeScreen(), // HomeScreen.dart de manera predeterminada
+    HomeScreen(), // index 0
     AlarmScreen(),
     NotificationsContent(),
     InfoScreen(),

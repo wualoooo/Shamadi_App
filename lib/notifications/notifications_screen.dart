@@ -1,9 +1,11 @@
 import 'dart:math';
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:shamadi_app/notifications/notification_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:timezone/timezone.dart' as tz;
 
+/// Pantalla principal de configuración de notificaciones programadas
+/// Permite activar/desactivar recordatorios para hábitos saludables
 class NotificationsContent extends StatefulWidget {
   const NotificationsContent({Key? key}) : super(key: key);
   
@@ -12,41 +14,68 @@ class NotificationsContent extends StatefulWidget {
 }
 
 class _NotificationsContentState extends State<NotificationsContent> {
+  // Estados de los interruptores de notificaciones
   bool hidratacion = false;
   bool horaDormir = false;
   bool silencioMental = false;
   bool _isLoading = true;
 
   final NotificationService _notificationService = NotificationService();
+  final Map<String, Timer> _activeTimers = {}; // Almacena timers activos por tipo
 
-  // HORARIOS SALUDABLES (ocultos al usuario)
-  final Map<String, List<Map<String, dynamic>>> _notificationSchedules = {
-    'hidratacion': [
-      {'id': 0, 'time': TimeOfDay(hour: 8, minute: 0), 'title': '¡Hidratación Mañanera!', 'body': 'Empieza el día con un vaso de agua'},
-      {'id': 1, 'time': TimeOfDay(hour: 10, minute: 30), 'title': '¡Hora del Agua!', 'body': 'Mantente hidratado durante la mañana'},
-      {'id': 2, 'time': TimeOfDay(hour: 13, minute: 0), 'title': 'Agua después del Almuerzo', 'body': 'Ayuda a tu digestión con agua'},
-      {'id': 3, 'time': TimeOfDay(hour: 16, minute: 0), 'title': 'Hidratación de Tarde', 'body': 'Recarga energías con agua'},
-      {'id': 4, 'time': TimeOfDay(hour: 19, minute: 0), 'title': 'Agua antes de la Cena', 'body': 'Prepárate para la cena con agua'},
-    ],
-    'horaDormir': [
-      {'id': 10, 'time': TimeOfDay(hour: 21, minute: 0), 'title': 'Preparación para Dormir', 'body': 'Comienza a relajarte para dormir'},
-      {'id': 11, 'time': TimeOfDay(hour: 21, minute: 30), 'title': '¡Hora de Apagar Pantallas!', 'body': 'Desconecta dispositivos para mejor sueño'},
-      {'id': 12, 'time': TimeOfDay(hour: 22, minute: 0), 'title': '¡Hora de Dormir!', 'body': 'Es hora de descansar. Buenas noches'},
-    ],
-    'silencioMental': [
-      {'id': 20, 'time': TimeOfDay(hour: 7, minute: 0), 'title': 'Meditación Matutina', 'body': '5 minutos de silencio para empezar el día'},
-      {'id': 21, 'time': TimeOfDay(hour: 13, minute: 30), 'title': 'Pausa Meditativa', 'body': 'Respira y centra tu mente al mediodía '},
-      {'id': 22, 'time': TimeOfDay(hour: 18, minute: 0), 'title': 'Silencio del Atardecer', 'body': 'Libera el estrés del día con 5 minutos de paz'},
-      {'id': 23, 'time': TimeOfDay(hour: 21, minute: 15), 'title': 'Reflexión Nocturna', 'body': 'Momento de gratitud y paz antes de dormir'},
-    ],
+  // Configuración completa de notificaciones con mensajes rotativos
+  final Map<String, Map<String, dynamic>> _notificationConfig = {
+    'hidratacion': {
+      'intervalHours': 3, // Cada 3 horas
+      'notifications': [
+        {'id': 1, 'title': '¡Hora de Hidratarse!', 'body': 'Toma un vaso de agua para mantenerte hidratado'},
+        {'id': 2, 'title': '¡Mantente Hidratado!', 'body': 'Recuerda beber agua regularmente'},
+        {'id': 3, 'title': 'Hidratación Esencial', 'body': 'Tu cuerpo necesita agua para funcionar correctamente'},
+        {'id': 4, 'title': 'Pausa para el Agua', 'body': 'Toma un descanso y bebe agua'},
+      ],
+    },
+    'horaDormir': {
+      'intervalHours': 1, // Cada hora por la noche
+      'notifications': [
+        {'id': 5, 'title': 'Preparación para Dormir', 'body': 'Comienza a relajarte para dormir'},
+        {'id': 6, 'title': '¡Hora de Apagar Pantallas!', 'body': 'Desconecta dispositivos para mejor sueño'},
+        {'id': 7, 'title': '¡Hora de Dormir!', 'body': 'Es hora de descansar. Buenas noches'},
+      ],
+    },
+    'silencioMental': {
+      'intervalHours': 4, // Cada 4 horas
+      'notifications': [
+        {'id': 8, 'title': 'Momento de Silencio Mental', 'body': 'Toma 5 minutos para respirar y centrarte'},
+        {'id': 9, 'title': 'Pausa Meditativa', 'body': 'Respira y centra tu mente'},
+        {'id': 10, 'title': 'Silencio Interior', 'body': 'Libera el estrés con unos minutos de paz'},
+        {'id': 11, 'title': 'Reflexión', 'body': 'Momento de gratitud y paz mental'},
+      ],
+    },
   };
 
   @override
   void initState() {
     super.initState();
-    _loadPreferences();
+    _initializeNotifications();
   }
 
+  @override
+  void dispose() {
+    // Limpieza: cancela todos los timers activos al destruir el widget
+    _activeTimers.forEach((key, timer) {
+      timer.cancel();
+    });
+    _activeTimers.clear();
+    super.dispose();
+  }
+
+  /// Inicializa el servicio de notificaciones y carga las preferencias guardadas
+  Future<void> _initializeNotifications() async {
+    await _notificationService.init();
+    await _loadPreferences();
+  }
+
+  /// Carga los estados de los interruptores desde SharedPreferences
   Future<void> _loadPreferences() async {
     final prefs = await SharedPreferences.getInstance();
     setState(() {
@@ -57,79 +86,127 @@ class _NotificationsContentState extends State<NotificationsContent> {
     });
   }
 
+  /// Guarda el estado de un interruptor en SharedPreferences
   Future<void> _savePreference(String key, bool value) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool(key, value);
   }
 
-  // Maneja el cambio del switch
+  /// Maneja el cambio de estado de un interruptor
+  /// Activa/desactiva las notificaciones según el nuevo valor
   Future<void> _onSwitchChanged(String type, bool value) async {
     setState(() {
       switch (type) {
-        case 'hidratacion': hidratacion = value; break;
-        case 'horaDormir': horaDormir = value; break;
-        case 'silencioMental': silencioMental = value; break;
+        case 'hidratacion': 
+          hidratacion = value; 
+          break;
+        case 'horaDormir': 
+          horaDormir = value; 
+          break;
+        case 'silencioMental': 
+          silencioMental = value; 
+          break;
       }
     });
 
     await _savePreference(type, value);
     
     if (value) {
-      // Si activa, solicita permisos y programa todas las notificaciones del tipo
-      await _notificationService.requestPermissions();
-      await _scheduleAllNotifications(type);
+      // Si se activa, solicitar permisos y programar notificaciones
+      final hasPermission = await _notificationService.requestPermissions();
+      if (hasPermission) {
+        await _scheduleNotifications(type);
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Se necesitan permisos para programar notificaciones'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
     } else {
-      // Si desactiva, cancela todas las notificaciones del tipo
-      await _cancelAllNotifications(type);
+      // Si se desactiva, cancelar notificaciones existentes
+      await _cancelNotifications(type);
     }
   }
 
-  // Programa todas las notificaciones de un tipo
-  Future<void> _scheduleAllNotifications(String type) async {
-    final schedules = _notificationSchedules[type]!;
+  /// Programa notificaciones rotativas para un tipo específico
+  /// Usa mensajes diferentes en rotación según el intervalo configurado
+  Future<void> _scheduleNotifications(String type) async {
+    final config = _notificationConfig[type]!;
+    final notifications = config['notifications'] as List<Map<String, dynamic>>;
+    final intervalHours = config['intervalHours'] as int;
     
-    for (final schedule in schedules) {
-      await _scheduleSingleNotification(
-        id: schedule['id'] as int,
-        title: schedule['title'] as String,
-        body: schedule['body'] as String,
-        time: schedule['time'] as TimeOfDay,
+    print('Programando ${notifications.length} notificaciones rotativas para: $type cada $intervalHours horas');
+    
+    int currentIndex = 0;
+    
+    // Cancelar timer existente si hay uno
+    if (_activeTimers.containsKey(type)) {
+      _activeTimers[type]!.cancel();
+    }
+    
+    // Función para mostrar la notificación actual
+    void showCurrentNotification() {
+      final notification = notifications[currentIndex];
+      
+      _notificationService.scheduleRecurringNotification(
+        id: notification['id'] as int,
+        title: notification['title'] as String,
+        body: notification['body'] as String,
+        intervalHours: intervalHours,
+        startDelaySeconds: 0,
       );
+      
+      print('Notificación rotativa ${currentIndex + 1}/${notifications.length}: "${notification['title']}"');
+      
+      // Avanzar al siguiente índice (rotar)
+      currentIndex = (currentIndex + 1) % notifications.length;
     }
-  }
-
-  // Programa una notificación individual
-  Future<void> _scheduleSingleNotification({
-    required int id,
-    required String title,
-    required String body,
-    required TimeOfDay time,
-  }) async {
-    final now = tz.TZDateTime.now(tz.local);
-    var scheduledTime = tz.TZDateTime(tz.local, now.year, now.month, now.day, time.hour, time.minute);
-
-    // Si ya pasó hoy, programa para mañana
-    if (scheduledTime.isBefore(now)) {
-      scheduledTime = scheduledTime.add(const Duration(days: 1));
-    }
-
-    await _notificationService.scheduleDailyNotification(
-      id: id,
-      title: title,
-      body: body,
-      scheduledTime: scheduledTime,
+    
+    // Mostrar primera notificación inmediatamente
+    showCurrentNotification();
+    
+    // Programar timer recurrente para las siguientes notificaciones
+    final timer = Timer.periodic(Duration(hours: intervalHours), (timer) {
+      showCurrentNotification();
+    });
+    
+    _activeTimers[type] = timer;
+    
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('Notificaciones de $type programadas: se rotarán ${notifications.length} mensajes cada $intervalHours horas'),
+        backgroundColor: Colors.green,
+      ),
     );
   }
 
-  // Cancela todas las notificaciones de un tipo
-  Future<void> _cancelAllNotifications(String type) async {
-    final schedules = _notificationSchedules[type]!;
-    final ids = schedules.map((schedule) => schedule['id'] as int).toList();
+  /// Cancela todas las notificaciones de un tipo específico
+  /// Detiene el timer y elimina las notificaciones programadas
+  Future<void> _cancelNotifications(String type) async {
+    final config = _notificationConfig[type]!;
+    final notifications = config['notifications'] as List<Map<String, dynamic>>;
+    final ids = notifications.map((notification) => notification['id'] as int).toList();
+    
+    // Cancelar el timer activo si existe
+    if (_activeTimers.containsKey(type)) {
+      _activeTimers[type]!.cancel();
+      _activeTimers.remove(type);
+    }
+    
     await _notificationService.cancelAllNotifications(ids);
+    
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('Notificaciones de $type canceladas'),
+        backgroundColor: Colors.red,
+      ),
+    );
   }
 
-  // Widget del switch SIMPLIFICADO
-  Widget _buildSwitchTile(String title, bool value, String type) {
+  /// Construye un elemento de lista con interruptor para cada tipo de notificación
+  Widget _buildSwitchTile(String title, bool value, String type) { 
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       child: Container(
@@ -139,9 +216,14 @@ class _NotificationsContentState extends State<NotificationsContent> {
         ),
         child: ListTile(
           contentPadding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
-          title: Text(
-            title,
-            style: const TextStyle(color: Colors.white, fontSize: 18),
+          title: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                title,
+                style: const TextStyle(color: Colors.white, fontSize: 18),
+              ),
+            ],
           ),
           trailing: Switch(
             value: value,
@@ -156,6 +238,7 @@ class _NotificationsContentState extends State<NotificationsContent> {
 
   @override
   Widget build(BuildContext context) {
+    // Cálculo para el gradient diagonal (13 grados)
     final double angle = 13 * pi / 180;
     final double x = cos(angle);
     final double y = sin(angle);
@@ -174,6 +257,7 @@ class _NotificationsContentState extends State<NotificationsContent> {
             : Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
+                  // Título principal de la pantalla
                   const Padding(
                     padding: EdgeInsets.fromLTRB(16, 16, 16, 8),
                     child: Text(
@@ -186,6 +270,20 @@ class _NotificationsContentState extends State<NotificationsContent> {
                       ),
                     ),
                   ),
+                  
+                  // Subtítulo explicativo
+                  const Padding(
+                    padding: EdgeInsets.fromLTRB(16, 8, 16, 8),
+                    child: Text(
+                      'Activa los recordatorios que necesites:',
+                      style: TextStyle(
+                        color: Colors.white70,
+                        fontSize: 14,
+                      ),
+                    ),
+                  ),
+
+                  // Lista de interruptores de notificaciones
                   Expanded(
                     child: ListView(
                       padding: const EdgeInsets.only(top: 8, bottom: 24),
@@ -194,7 +292,7 @@ class _NotificationsContentState extends State<NotificationsContent> {
                         _buildSwitchTile('Recordatorio de hidratación', hidratacion, 'hidratacion'),
                         _buildSwitchTile('Hora de dormir', horaDormir, 'horaDormir'),
                         _buildSwitchTile('Silencio mental', silencioMental, 'silencioMental'),
-                        const SizedBox(height: 56),
+                        const SizedBox(height: 56), // Espacio inferior para scroll
                       ],
                     ),
                   ),

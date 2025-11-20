@@ -4,7 +4,7 @@ import 'package:proximity_sensor/proximity_sensor.dart';
 import 'dart:async';
 import 'timer.dart';
 import 'concentration_screen.dart';
-import 'timer_model.dart'; // Importa el modelo
+import 'timer_model.dart'; // Importa el modelo del timer
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -14,32 +14,35 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
-  StreamSubscription<int>? _proximitySubscription;
-  bool _isNear = false;
+  StreamSubscription<int>? _proximitySubscription; // Suscripción al sensor de proximidad
+  bool _isNear = false; // Estado del sensor (cerca/lejos)
 
   @override
   void initState() {
     super.initState();
-    _startProximityListener();
+    _startProximityListener(); // Inicia el listener del sensor al cargar
   }
 
   @override
   void dispose() {
-    _proximitySubscription?.cancel();
+    _proximitySubscription?.cancel(); // Limpia la suscripción al destruir
     super.dispose();
   }
 
+  // Inicia la escucha del sensor de proximidad
   void _startProximityListener() async {
     try {
       _proximitySubscription = ProximitySensor.events.listen((int event) {
-        bool isNear = event > 0;
+        bool isNear = event > 0; // event > 0 = objeto cerca, 0 = lejos
         setState(() {
           _isNear = isNear;
         });
         
+        // Obtiene el modelo del timer
         final timerModel = Provider.of<TimerModel>(context, listen: false);
+        // Si el timer está activo, hay objeto cerca y la pantalla de concentración está visible
         if (timerModel.isRunning && isNear && timerModel.showConcentrationScreen) {
-          timerModel.setShowConcentrationScreen(false);
+          timerModel.setShowConcentrationScreen(false); // Oculta la pantalla
         }
         
         print('Sensor de proximidad: ${isNear ? "Cerca" : "Lejos"}');
@@ -49,13 +52,16 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
+  // Abre el selector de tiempo (bottom sheet)
   void _openTimerPicker(BuildContext context) async {
     final timerModel = Provider.of<TimerModel>(context, listen: false);
     
+    // No permite cambiar tiempo si el timer está activo
     if (timerModel.isRunning) {
       return;
     }
 
+    // Muestra el bottom sheet y espera selección
     final selectedTime = await showModalBottomSheet<Map<String, int>>( 
       context: context,
       isScrollControlled: true,
@@ -63,6 +69,7 @@ class _HomeScreenState extends State<HomeScreen> {
       builder: (BuildContext context) => const TimerPickerBottomSheet(),
     );
     
+    // Si se seleccionó un tiempo, lo configura en el modelo
     if (selectedTime != null) {
       final selectedMinutes = selectedTime['minutos'] ?? 0;
       final selectedSeconds = selectedTime['segundos'] ?? 0;
@@ -73,6 +80,7 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
+  // Alterna la pantalla de concentración (solo si no hay objeto cerca)
   void _toggleConcentrationScreen(BuildContext context) {
     final timerModel = Provider.of<TimerModel>(context, listen: false);
     if (timerModel.isRunning && !_isNear) {
@@ -80,6 +88,7 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
+  // Oculta la pantalla de concentración
   void _hideConcentrationScreen(BuildContext context) {
     final timerModel = Provider.of<TimerModel>(context, listen: false);
     timerModel.setShowConcentrationScreen(false);
@@ -89,6 +98,7 @@ class _HomeScreenState extends State<HomeScreen> {
   Widget build(BuildContext context) {
     return Consumer<TimerModel>(
       builder: (context, timerModel, child) {
+        // Formatea el tiempo para mostrar (00:00)
         String minutesStr = (timerModel.remainingSeconds ~/ 60).toString().padLeft(2, '0');
         String secondsStr = (timerModel.remainingSeconds % 60).toString().padLeft(2, '0');
 
@@ -96,19 +106,23 @@ class _HomeScreenState extends State<HomeScreen> {
           backgroundColor: Colors.transparent,
           body: Stack(
             children: [
+              // Contenido principal de la pantalla
               Padding(
                 padding: const EdgeInsets.only(top: 160.0),
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.start,
                   children: [
+                    // Fila con display de tiempo (minutos : segundos)
                     Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
+                        // Cuadrado de minutos (clickeable solo si timer no está activo)
                         GestureDetector(
                           onTap: timerModel.isRunning ? null : () => _openTimerPicker(context),
                           child: _buildTimeSquare(minutesStr),
                         ),
-                        _buildSeparator(),
+                        _buildSeparator(), // Separador ":"
+                        // Cuadrado de segundos (clickeable solo si timer no está activo)
                         GestureDetector(
                           onTap: timerModel.isRunning ? null : () => _openTimerPicker(context),
                           child: _buildTimeSquare(secondsStr),
@@ -116,6 +130,7 @@ class _HomeScreenState extends State<HomeScreen> {
                       ],
                     ),
 
+                    // Texto labels debajo del tiempo
                     const SizedBox(height: 5),
                     Text(
                       'Minutos                          Segundos           ',
@@ -129,9 +144,11 @@ class _HomeScreenState extends State<HomeScreen> {
 
                     const SizedBox(height: 60),
                     
+                    // Círculo de progreso con imagen central
                     Stack(
                       alignment: Alignment.center,
                       children: [
+                        // Anillo de progreso que se reduce con el tiempo
                         SizedBox(
                           width: 270,
                           height: 270,
@@ -140,10 +157,11 @@ class _HomeScreenState extends State<HomeScreen> {
                             strokeWidth: 5,
                             backgroundColor: Colors.transparent,
                             valueColor: AlwaysStoppedAnimation<Color>( 
-                              const Color(0xFF9333EA),
+                              const Color(0xFF9333EA), // Color morado del progreso
                             ),
                           ),
                         ),
+                        // Imagen circular central (clickeable)
                         GestureDetector(
                           onTap: () => _toggleConcentrationScreen(context),
                           child: Container(
@@ -167,6 +185,7 @@ class _HomeScreenState extends State<HomeScreen> {
                               child: Image.asset(
                                 'assets/images/meditacion.png',
                                 fit: BoxFit.cover,
+                                // Fallback si la imagen no carga
                                 errorBuilder: (context, error, stackTrace) {
                                   return Container( 
                                     decoration: const BoxDecoration(
@@ -188,12 +207,13 @@ class _HomeScreenState extends State<HomeScreen> {
 
                     const SizedBox(height: 20),
                     
+                    // Botón Inicio/Detener
                     ElevatedButton(
                       onPressed: () {
                         if (timerModel.isRunning) {
-                          timerModel.stopTimer();
+                          timerModel.stopTimer(); // Detiene si está activo
                         } else {
-                          timerModel.startTimer();
+                          timerModel.startTimer(); // Inicia si está parado
                         }
                       },
                       style: ElevatedButton.styleFrom(
@@ -219,11 +239,12 @@ class _HomeScreenState extends State<HomeScreen> {
                 ),
               ),
               
+              // Pantalla de concentración (se superpone si está activa)
               if (timerModel.showConcentrationScreen)
                 GestureDetector(
-                  onTap: () => _hideConcentrationScreen(context),
+                  onTap: () => _hideConcentrationScreen(context), // Cierra al tocar
                   child: Container(
-                    color: Colors.black87,
+                    color: Colors.black87, // Fondo semi-transparente
                     width: double.infinity,
                     height: double.infinity,
                     child: ConcentrationScreen(remainingSeconds: timerModel.remainingSeconds),
@@ -236,17 +257,17 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  // ... (mantén _buildTimeSquare y _buildSeparator igual)
+  // Widget que construye un cuadrado de tiempo (minutos o segundos)
   Widget _buildTimeSquare(String digits) {
     return Container( 
       width: 130,
       height: 96,
       margin: const EdgeInsets.symmetric(horizontal: 8),
       decoration: BoxDecoration(
-        color: const Color(0xFFEADDFF),
+        color: const Color(0xFFEADDFF), // Color de fondo lila claro
         borderRadius: BorderRadius.circular(12),
         border: Border.all(
-          color: const Color(0xFF6155F5),
+          color: const Color(0xFF6155F5), // Borde morado
           width: 2,
         ),
         boxShadow: [
@@ -263,7 +284,7 @@ class _HomeScreenState extends State<HomeScreen> {
           style: const TextStyle(
             fontSize: 42,
             fontWeight: FontWeight.w600,
-            color: Color(0xFF4F378A),
+            color: Color(0xFF4F378A), // Color de texto morado oscuro
             fontFamily: 'Inter',
           ),
         ),
@@ -271,6 +292,7 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
+  // Widget que construye el separador ":" entre minutos y segundos
   Widget _buildSeparator() {
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 4),
