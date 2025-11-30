@@ -7,6 +7,7 @@ import 'package:shamadi_app/home_screen/timer_model.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
   // Inicializa Firebase
   await Firebase.initializeApp();
 
@@ -14,7 +15,7 @@ Future<void> main() async {
   await NotificationService().init();
   
    // Inicia la aplicación con el proveedor de estado para TimerModel
-   runApp(
+  runApp(
     ChangeNotifierProvider(
       create: (context) => TimerModel(),
       child: const MyApp(),
